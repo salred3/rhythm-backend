@@ -106,3 +106,89 @@ const avgFlowTime = calculateAverage(flowStateDurations);
 - Background workers handle heavy computations
 - Optimized queries for real-time dashboard updates
 - Efficient conflict detection algorithms for calendar scheduling
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/rhythm-backend.git
+cd rhythm-backend
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+
+# Run database migrations
+npm run migrate
+
+# Start development server
+npm run dev
+```
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run specific test suites
+npm test -- --testPathPattern=aggregators
+npm test -- --testPathPattern=analytics
+```
+
+## API Endpoints
+
+### Dashboard Endpoints
+- `GET /api/dashboard/summary` - Get aggregated dashboard metrics
+- `GET /api/dashboard/realtime` - Subscribe to real-time updates
+- `GET /api/dashboard/metrics?companyId={id}` - Get detailed metrics
+
+### Analytics Endpoints
+- `GET /api/analytics/trends` - Get productivity trends
+- `GET /api/analytics/flow-states` - Get flow state analysis
+- `POST /api/analytics/calculate` - Trigger analytics calculation
+
+## Development
+
+### Running Locally
+```bash
+# Start Redis (required for caching)
+docker-compose up -d redis
+
+# Start the development server
+npm run dev
+
+# Start the worker processes
+npm run worker
+```
+
+### Code Style
+```bash
+# Run linting
+npm run lint
+
+# Run formatting
+npm run format
+
+# Type checking
+npm run type-check
+```
+
+## Contributing
+
+1. Create a feature branch from `main`
+2. Write tests for new functionality
+3. Ensure all tests pass and coverage is maintained
+4. Submit a pull request with clear description
+
+## License
+
+Proprietary - Rhythm Platform © 2024

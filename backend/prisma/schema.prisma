@@ -1,0 +1,32 @@
+model JobQueue {
+  id            String    @id @default(cuid())
+  type          String    // 'scheduler' | 'email' | 'analytics' | 'learning'
+  status        String    @default("pending") // 'pending' | 'processing' | 'completed' | 'failed'
+  priority      Int       @default(5)
+  data          Json
+  result        Json?
+  error         String?
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+  scheduledFor  DateTime  @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([type, status, scheduledFor])
+  @@index([status, priority])
+}
+
+model RecurringJob {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        String
+  schedule    String   // Cron expression
+  data        Json
+  enabled     Boolean  @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

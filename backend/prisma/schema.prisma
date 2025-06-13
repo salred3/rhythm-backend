@@ -1,7 +1,430 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ========================================
+// USER & AUTH
+// ========================================
+
+model User {
+  id                String           @id @default(cuid())
+  email             String           @unique
+  name              String?
+  avatar            String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  lastActiveAt      DateTime?
+  
+  // Relations
+  companies         CompanyMember[]
+  tasks             Task[]
+  projects          Project[]
+  calendarEvents    CalendarEvent[]
+  meetings          Meeting[]
+  chatMessages      ChatMessage[]
+  timeLogs          TaskTimeLog[]
+  settings          UserSettings?
+  aiUsage           AIUsage[]
+  
+  @@index([email])
+}
+
+model UserSettings {
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Preferences
+  calendarMode      String           @default("unified") // 'unified' | 'per_company'
+  defaultAIModel    String           @default("gpt-3.5-turbo")
+  matrixWeights     Json             @default("{\"impact\": 0.4, \"effort\": 0.3, \"timeline\": 0.3}")
+  workingHours      Json             @default("{\"start\": \"09:00\", \"end\": \"17:00\", \"timezone\": \"UTC\"}")
+  preferredBlockSizes Int[]          @default([30, 60, 120])
+  energyPatterns    Json?
+  
+  // Usage limits
+  aiUsageCapDaily   Int              @default(100)
+  aiUsageCapWeekly  Int              @default(500)
+  aiUsageCapMonthly Int              @default(2000)
+  
+  // Notifications
+  emailReminders    Boolean          @default(true)
+  pushNotifications Boolean          @default(false)
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+// ========================================
+// COMPANY & TEAM
+// ========================================
+
+model Company {
+  id                String           @id @default(cuid())
+  name              String
+  description       String?
+  logo              String?
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  members           CompanyMember[]
+  projects          Project[]
+  tasks             Task[]
+  calendarEvents    CalendarEvent[]
+  settings          CompanySettings?
+  
+  @@index([name])
+}
+
+model CompanySettings {
+  id                String           @id @default(cuid())
+  companyId         String           @unique
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Work preferences
+  workingHours      Json             @default("{\"start\": \"09:00\", \"end\": \"17:00\"}")
+  workingDays       String[]         @default(["monday", "tuesday", "wednesday", "thursday", "friday"])
+  timezone          String           @default("UTC")
+  
+  // Features
+  autoSchedulingEnabled Boolean      @default(true)
+  aiSuggestionsEnabled  Boolean      @default(true)
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model CompanyMember {
+  id                String           @id @default(cuid())
+  userId            String
+  companyId         String
+  role              String           @default("member") // 'owner' | 'admin' | 'member' | 'guest'
+  
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  joinedAt          DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@index([userId])
+}
+
+// ========================================
+// PROJECTS & TASKS
+// ========================================
+
+model Project {
+  id                String           @id @default(cuid())
+  companyId         String
+  createdById       String
+  name              String
+  description       String?
+  
+  // Matrix values
+  impact            Int              @default(3) // 1-5
+  effort            Int              @default(3) // 1-5
+  timelineDays      Int              @default(30)
+  
+  // Scheduling
+  dueDate           DateTime?
+  isLocked          Boolean          @default(false)
+  priorityScore     Float            @default(50)
+  
+  // Status
+  status            String           @default("active") // 'active' | 'completed' | 'archived'
+  completedAt       DateTime?
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy         User             @relation(fields: [createdById], references: [id])
+  tasks             Task[]
+  
+  @@index([companyId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model Task {
+  id                String           @id @default(cuid())
+  projectId         String?
+  parentTaskId      String?
+  companyId         String
+  userId            String
+  assignedToId      String?
+  
+  title             String
+  description       String?
+  notes             String?
+  
+  // Matrix values
+  impact            Int              @default(3) // 1-5
+  effort            Int              @default(3) // 1-5
+  complexity        Int              @default(3) // 1-5
+  quadrant          String?          // 'do-first' | 'schedule' | 'delegate' | 'eliminate'
+  
+  // Time estimates
+  estimatedMinutes  Int              @default(60)
+  actualMinutes     Int              @default(0)
+  totalTrackedSeconds Int            @default(0)
+  
+  // Scheduling
+  dueDate           DateTime?
+  startAt           DateTime?
+  isScheduleLocked  Boolean          @default(false)
+  needsRescheduling Boolean          @default(false)
+  lastScheduledAt   DateTime?
+  
+  // Priority
+  priority          String           @default("medium") // 'low' | 'medium' | 'high' | 'urgent'
+  priorityScore     Float            @default(50)
+  
+  // Timer state
+  timerState        String           @default("idle") // 'idle' | 'running' | 'paused' | 'finished'
+  lastStartedAt     DateTime?
+  
+  // Status
+  status            String           @default("open") // 'open' | 'in_progress' | 'completed' | 'cancelled'
+  completedAt       DateTime?
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  project           Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentTask        Task?            @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks          Task[]           @relation("TaskSubtasks")
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id])
+  assignedTo        User?            @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  
+  tags              TaskTag[]
+  timeLogs          TaskTimeLog[]
+  chatMessages      ChatMessage[]
+  calendarEvents    CalendarEvent[]
+  
+  @@index([projectId])
+  @@index([parentTaskId])
+  @@index([companyId])
+  @@index([userId])
+  @@index([status])
+  @@index([priorityScore])
+}
+
+model Tag {
+  id                String           @id @default(cuid())
+  name              String           @unique
+  color             String?
+  
+  createdAt         DateTime         @default(now())
+  
+  tasks             TaskTag[]
+  
+  @@index([name])
+}
+
+model TaskTag {
+  id                String           @id @default(cuid())
+  taskId            String
+  tagId             String
+  
+  task              Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag               Tag              @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@unique([taskId, tagId])
+  @@index([taskId])
+  @@index([tagId])
+}
+
+// ========================================
+// CALENDAR & TIME TRACKING
+// ========================================
+
+model CalendarEvent {
+  id                String           @id @default(cuid())
+  userId            String
+  companyId         String?
+  taskId            String?
+  
+  title             String
+  description       String?
+  startTime         DateTime
+  endTime           DateTime
+  
+  type              String           @default("event") // 'event' | 'meeting' | 'task'
+  isLocked          Boolean          @default(false)
+  isAllDay          Boolean          @default(false)
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company           Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  task              Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, startTime])
+  @@index([companyId])
+  @@index([taskId])
+}
+
+model Meeting {
+  id                String           @id @default(cuid())
+  userId            String
+  
+  title             String
+  description       String?
+  startAt           DateTime
+  endAt             DateTime
+  location          String?
+  attendees         String[]
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, startAt])
+}
+
+model TaskTimeLog {
+  id                String           @id @default(cuid())
+  taskId            String
+  userId            String
+  
+  startTime         DateTime
+  endTime           DateTime?
+  duration          Int              @default(0) // in seconds
+  
+  description       String?
+  
+  createdAt         DateTime         @default(now())
+  
+  // Relations
+  task              Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([taskId])
+  @@index([userId])
+  @@index([startTime])
+}
+
+// ========================================
+// AI & CHAT
+// ========================================
+
+model ChatMessage {
+  id                String           @id @default(cuid())
+  itemType          String           // 'task' | 'project'
+  itemId            String
+  userId            String
+  
+  role              String           // 'user' | 'assistant' | 'system'
+  content           String
+  model             String?
+  tokenCount        Int              @default(0)
+  
+  createdAt         DateTime         @default(now())
+  
+  // Relations
+  task              Task?            @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([itemType, itemId])
+  @@index([userId])
+}
+
+model AIUsage {
+  id                String           @id @default(cuid())
+  userId            String
+  companyId         String?
+  
+  model             String
+  inputTokens       Int
+  outputTokens      Int
+  totalTokens       Int
+  cost              Float
+  
+  purpose           String           // 'chat' | 'classification' | 'estimation'
+  
+  createdAt         DateTime         @default(now())
+  
+  // Relations
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+  @@index([companyId])
+}
+
+// ========================================
+// ANALYTICS & ML
+// ========================================
+
+model DailyAnalytics {
+  id                String           @id @default(cuid())
+  date              DateTime         @unique
+  
+  tasksCreated      Int              @default(0)
+  tasksCompleted    Int              @default(0)
+  totalTimeTracked  Int              @default(0) // in seconds
+  
+  metadata          Json?
+  
+  createdAt         DateTime         @default(now())
+  
+  @@index([date])
+}
+
+model MLModel {
+  id                String           @id @default(cuid())
+  type              String           // 'duration-estimation' | 'task-classification'
+  version           Int              @default(1)
+  
+  metrics           Json             // accuracy, loss, etc.
+  parameters        Json?            // model coefficients
+  path              String?          // file path for saved model
+  
+  status            String           @default("training") // 'training' | 'trained' | 'deployed' | 'archived'
+  environment       String?          // 'development' | 'staging' | 'production'
+  
+  trainedAt         DateTime?
+  deployedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  
+  @@index([type, status])
+}
+
+model TaskFeatures {
+  id                String           @id @default(cuid())
+  taskId            String           @unique
+  
+  features          Json             // extracted features for ML
+  calculatedAt      DateTime         @default(now())
+  
+  @@index([taskId])
+}
+
+// ========================================
+// BACKGROUND JOBS
+// ========================================
+
 model JobQueue {
   id            String    @id @default(cuid())
-  type          String    // 'scheduler' | 'email' | 'analytics' | 'learning'
-  status        String    @default("pending") // 'pending' | 'processing' | 'completed' | 'failed'
+  type          String    
+  status        String    @default("pending") 
   priority      Int       @default(5)
   data          Json
   result        Json?
@@ -22,7 +445,7 @@ model RecurringJob {
   id          String   @id @default(cuid())
   name        String   @unique
   type        String
-  schedule    String   // Cron expression
+  schedule    String   
   data        Json
   enabled     Boolean  @default(true)
   lastRunAt   DateTime?

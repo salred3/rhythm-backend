@@ -1,0 +1,53 @@
+{
+  "name": "rhythm-backend",
+  "version": "1.0.0",
+  "description": "Rhythm Project Management Platform - Backend",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "test": "vitest",
+    "test:unit": "vitest run --dir tests/unit",
+    "test:integration": "vitest run --dir tests/integration",
+    "test:e2e": "vitest run --dir tests/e2e",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:ci": "vitest run --reporter=junit --reporter=default",
+    "lint": "eslint src tests --ext .ts",
+    "lint:fix": "eslint src tests --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "type-check": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "tsx src/database/seed.ts",
+    "db:studio": "prisma studio",
+    "docker:build": "docker build -t rhythm-backend .",
+    "docker:run": "docker run -p 3001:3001 rhythm-backend",
+    "pre-commit": "lint-staged",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.4.0",
+    "@fastify/helmet": "^11.1.0",
+    "@fastify/jwt": "^7.2.0",
+    "@fastify/rate-limit": "^8.0.0",
+    "@fastify/swagger": "^8.12.0",
+    "@fastify/swagger-ui": "^1.10.0",
+    "@prisma/client": "^5.6.0",
+    "bcrypt": "^5.1.1",
+    "fastify": "^4.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.54.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.2.2",
+    "vitest": "^1.0.0"
+  }
+}
